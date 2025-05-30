@@ -1,7 +1,5 @@
 package mods.battlegear2.client;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -25,7 +23,6 @@ import net.minecraftforge.common.MinecraftForge;
 import cpw.mods.fml.client.FMLClientHandler;
 import cpw.mods.fml.client.registry.ClientRegistry;
 import cpw.mods.fml.common.FMLCommonHandler;
-import cpw.mods.fml.common.Loader;
 import cpw.mods.fml.common.network.internal.FMLProxyPacket;
 import cpw.mods.fml.common.registry.GameData;
 import mods.battlegear2.Battlegear;
@@ -54,10 +51,6 @@ import xonin.backhand.api.core.BackhandUtils;
 public final class ClientProxy extends CommonProxy {
 
     public static boolean tconstructEnabled = false;
-    public static Method updateTab, addTabs;
-    private static Object dynLightPlayerMod;
-    private static Method dynLightFromItemStack, refresh;
-    public static ItemStack heldCache;
     public static IIcon[] backgroundIcon, bowIcons, bowIronIcons, bowDiamondIcons, bowGoldIcons; // bowGregIcons,;
 
     @Override
@@ -217,47 +210,6 @@ public final class ClientProxy extends CommonProxy {
             }
         }
         return null;
-    }
-
-    @Override
-    public void tryUseDynamicLight(EntityPlayer player, ItemStack stack) {
-        if (player == null && stack == null) {
-            dynLightPlayerMod = Loader.instance().getIndexedModList().get("DynamicLights_thePlayer").getMod();
-            if (dynLightPlayerMod != null) {
-                try {
-                    refresh = Class.forName("mods.battlegear2.client.utils.DualHeldLight")
-                            .getMethod("refresh", EntityPlayer.class, int.class, int.class);
-                    // First attempt: retrieve private method from mod instance directly
-                    dynLightFromItemStack = dynLightPlayerMod.getClass()
-                            .getDeclaredMethod("getLightFromItemStack", ItemStack.class);
-                    dynLightFromItemStack.setAccessible(true);
-                } catch (Exception first) { // Second attempt: retrieve method from mod config helper
-                    try {
-                        Class<?> helper = Class.forName("atomicstryker.dynamiclights.client.ItemConfigHelper");
-                        Field config = dynLightPlayerMod.getClass().getDeclaredField("itemsMap");
-                        config.setAccessible(true);
-                        dynLightFromItemStack = helper.getMethod("getLightFromItemStack", ItemStack.class);
-                        dynLightPlayerMod = config.get(dynLightPlayerMod);
-                    } catch (Exception second) {
-                        return;
-                    }
-                }
-            }
-        }
-        if (dynLightFromItemStack != null && refresh != null) {
-            if (!ItemStack.areItemStacksEqual(stack, heldCache)) {
-                try {
-                    int lightNew = (Integer) dynLightFromItemStack.invoke(dynLightPlayerMod, stack);
-                    int lightOld = (Integer) dynLightFromItemStack.invoke(dynLightPlayerMod, heldCache);
-                    if (lightNew != lightOld) {
-                        refresh.invoke(null, player, lightNew, lightOld);
-                    }
-                } catch (Exception e) {
-                    return;
-                }
-                heldCache = stack;
-            }
-        }
     }
 
     @Override
